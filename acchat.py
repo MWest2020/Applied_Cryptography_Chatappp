@@ -23,72 +23,71 @@ if args.id is None:
 
 # print welcome message
 print(f"Basic chat started, my client id is: {args.id}")
+print("Enter your message (or 'quit' to exit): ")    
     
     
+key_manager = KeyManager()
+if key_manager:
+    print("Generated RSA keypair")
+else:
+    print("Failed to generate RSA keypair")
     
-# Maak een instantie van KeyManager om de sleutels uit te wissselen en op te slaan
-key_manager = KeyManager()  
     
-# on message handler
 def on_message(client, userdata, message):
     try:
         obj = json.loads(message.payload)
-        
-        # Controleer op de aanwezigheid van een publieke sleutel
-        if 'public_key' in obj and 'clientid' in obj:
-            key_manager.store_public_key(obj['clientid'], obj['public_key'])
-            print(f"Received public key from {obj['clientid']}")
+
+        # Negeer berichten die ik zelf heb verzonden
+        if obj.get('clientid') == args.id:
             return
+
+        # Controleer of het bericht een sleuteluitwisselingsbericht is
+        if obj.get('type') == 'key_exchange':
+            if 'public_key' in obj and 'clientid' in obj:
+                key_manager.store_public_key(obj['clientid'], obj['public_key'])
+                print(f"Received public key from {obj['clientid']}")
+            return
+
+        # Verwerk chatberichten
+        elif obj.get('type') == 'chat':
+            if 'message' in obj and obj['clientid'] != args.id:
+                # Voeg hier eventueel versleuteling/ontsleuteling toe
+                print(f"Received: '{obj['message']}' from '{obj['clientid']}'")
+            else:
+                print(f"Received a message from an unknown or untrusted client '{obj['clientid']}'")
     except json.decoder.JSONDecodeError:
         print("Received a non-JSON message")
         return
 
-    if not 'clientid' in obj or obj['clientid'] == args.id:
-        # Negeer berichten zonder client ID of berichten verzonden door mezelf
-        return
-
-    if 'message' in obj:
-        if key_manager.get_public_key(obj['clientid']):
-            # Verwerk het bericht alleen als de publieke sleutel bekend is
-            print(f"Received: '{obj['message']}' from '{obj['clientid']}'")
-        else:
-            print(f"Received a message from an unknown or untrusted client '{obj['clientid']}'")
-    else:
-        print(f"Received a message without text from '{obj['clientid']}'")
-
-
-# create MQTT client
 client = mqtt.Client(args.id)
-client.on_message=on_message
+client.on_message = on_message
 client.connect(args.host)
 client.loop_start()
 
-# aanmaken pubkey en versturen
+# Verstuur de publieke sleutel als een apart bericht
 public_key_pem = key_manager.get_public_key_pem()
-client.publish(args.topic, json.dumps({
+client.publish("public_keys", json.dumps({
     'clientid': args.id,
+    'type': 'key_exchange',
     'public_key': public_key_pem.decode()
 }))
 
 client.subscribe(args.topic)
 
-# start an endless loop and wait for input on the commandline
-# publish all messages as a JSON object and stop when the input is 'quit'
 while True:
     data = input()
-    if data == 'quit':
-        print("Stopping application")
+    if data.lower() == 'quit':
         break
 
-    print(f"Sending: `{data}`")
-    
-    # publish a message to the chat
-    client.publish(args.topic,json.dumps({
-        'clientid':args.id,
-        'message':data
+    # Verstuur een chatbericht
+    client.publish(args.topic, json.dumps({
+        'clientid': args.id,
+        'type': 'chat',
+        'message': data
     }))
+    print(f"Sent: {data}")
 
-
-# terminate the MQTT client loop
+print("Disconnecting...")
 client.loop_stop()
-    
+# Gracefully sluiten van de MQTT client
+client.disconnect()

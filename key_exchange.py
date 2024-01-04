@@ -31,6 +31,7 @@ class KeyManager:
             public_key_bytes,
             backend=default_backend()
         )
+        print(f"Stored public key of {client_id}")
 
     def get_public_key(self, client_id):
         # Verkrijg de opgeslagen publieke sleutel van een andere client
