@@ -36,14 +36,14 @@ def decrypt_message(key, encrypted_message):
     # De IV is de eerste 16 bytes van de versleutelde boodschap
     iv = encrypted_message[:16]
     encrypted_message = encrypted_message[16:]
-
+    print(f"encrypted_message Na iv: {encrypted_message}")
     # Configureer de cipher voor ontsleuteling
     cipher = Cipher(algorithms.AES(key), modes.CBC(iv), backend=default_backend())
+    print(f"cipher: {cipher}")
     decryptor = cipher.decryptor()
-
-    # Ontsleutel en depad de boodschap
+    print(f"decryptor: {decryptor}")#hier gaat het nog goed, daarna niet meer
+    # Ontsleutel en depad de boodschap 
     unpadder = padding.PKCS7(128).unpadder()
     decrypted =  unpadder.update(decryptor.update(encrypted_message) + decryptor.finalize()).decode('utf-8')
-    
+    print(f"decrypted: {decrypted}")
     return decrypted
-

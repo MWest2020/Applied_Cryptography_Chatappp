@@ -1,0 +1,16 @@
+import pytest 
+from src.encryption import encrypt_message, decrypt_message
+import os
+
+class TestEncryption:
+    def test_encrypt_decrypt(self):
+        key = os.urandom(32)
+        original_text = "Dit is een test."
+        encrypted = encrypt_message(key, original_text)
+        decrypted = decrypt_message(key, encrypted)
+        assert original_text == decrypted
+
+    def test_invalid_key_length(self):
+        key = b"korte_sleutel"
+        with pytest.raises(ValueError):
+            encrypt_message(key, "Dit zal falen")
