@@ -62,6 +62,7 @@ def on_message(client, userdata, message):
         # Verwerk chatberichten
         elif obj.get('type') == 'chat':
             encrypted_msg = obj['message']
+            print(f"Received encrypted message: {encrypted_msg}")
             # Ontsleutel het bericht
             decrypted_msg = encryption.decrypt_message(symmetric_key, encrypted_msg)
             print(f"Received: '{decrypted_msg}' from '{obj['clientid']}'")
@@ -92,6 +93,7 @@ while True:
     # Verstuur een chatbericht
     #versleutel het bericht hier
     encrypted_data = encryption.encrypt_message(symmetric_key, data)
+    print(f"Encrypted message: {encrypted_data}")
     client.publish(args.topic, json.dumps({
         'clientid': args.id,
         'type': 'chat',

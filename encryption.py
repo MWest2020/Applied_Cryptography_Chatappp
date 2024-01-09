@@ -25,11 +25,14 @@ def encrypt_message(key, message):
 
 
 def decrypt_message(key, encrypted_message):
+    
+    print(f"encrypted_message: {encrypted_message}")
     if len(key) != 32:
         raise ValueError("De sleutel moet 32 bytes lang zijn voor AES256.")
 
     # Base64 decodeer de versleutelde boodschap
     encrypted_message = base64.b64decode(encrypted_message)
+    print(f"encrypted_message Na base64: {encrypted_message}")
     # De IV is de eerste 16 bytes van de versleutelde boodschap
     iv = encrypted_message[:16]
     encrypted_message = encrypted_message[16:]
@@ -42,4 +45,5 @@ def decrypt_message(key, encrypted_message):
     unpadder = padding.PKCS7(128).unpadder()
     decrypted =  unpadder.update(decryptor.update(encrypted_message) + decryptor.finalize()).decode('utf-8')
     
+    return decrypted
 
