@@ -14,13 +14,18 @@ from encryption import sign_message, verify_signature, encrypt_message, decrypt_
 # Stap 1. import voor de asymmetrissche sleuteluitwisseling 
 from key_exchange import KeyManager
 key_manager = KeyManager()
-key_manager = KeyManager()
-print("Initial stored public keys:", key_manager.list_stored_public_keys())
+if key_manager:
+    print("Generated RSA keypair")
+else:
+    print("Failed to generate RSA keypair")
 
-test_message = "Test Message"
-signature = sign_message(key_manager.private_key, test_message)
-encoded_signature = base64.b64encode(signature).decode()
-print("Known Good Signature:", encoded_signature)
+
+
+
+
+# TODO: not test message yet
+# signature = sign_message(key_manager.private_key, test_message)
+# encoded_signature = base64.b64encode(signature).decode()
 
 # Stap 2 genereren van een symmetrische sleutel voor het berichtverkeer.
 # symmetric_key = os.urandom(32) # 32 bytes = 256 bits
@@ -40,11 +45,7 @@ if args.id is None:
     alphabet = string.ascii_letters + string.digits
     args.id = ''.join(secrets.choice(alphabet) for i in range(8))
 
-key_manager = KeyManager()
-if key_manager:
-    print("Generated RSA keypair")
-else:
-    print("Failed to generate RSA keypair")
+
 
 # print welcome message
 print(f"Basic chat started, my client id is: {args.id}")
@@ -76,8 +77,8 @@ def on_message(client, userdata, message):
 
             # Public Key Logging
             public_key = key_manager.get_public_key(obj['clientid'])
-            print(f"Public Key for Verification: {public_key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()}")
-            print("Available public keys before verification:", key_manager.list_stored_public_keys())
+            # print(f"Public Key for Verification: {public_key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()}")
+            # print("Available public keys before verification:", key_manager.list_stored_public_keys())
 
             print("Verifying signature...")
             # Replace with static signature for testing
@@ -118,6 +119,7 @@ def on_connect(client, userdata, flags, rc):
 
 client = mqtt.Client(args.id)
 client.subscribe("public_keys")
+# client.subscribe(args.topic)
 client.on_connect = on_connect
 client.on_message = on_message
 client.connect(args.host)
@@ -131,7 +133,6 @@ client.publish("public_keys", json.dumps({
     'public_key': public_key_pem.decode()
 }))
 
-client.subscribe(args.topic)
 
 while True:
     data = input("Enter message (or 'quit' to exit): ")

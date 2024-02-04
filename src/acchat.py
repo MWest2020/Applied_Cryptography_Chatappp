@@ -13,9 +13,14 @@ from cryptography.hazmat.backends import default_backend
 # from encryption import sign_message, verify_signature, encrypt_message, decrypt_message, parse_encrypted_message
 from encryption import encrypt_message, decrypt_message, parse_encrypted_message
 from key_exchange import KeyManager
-key_manager = KeyManager()
 
-print("Initial stored public keys:", key_manager.list_stored_public_keys())
+
+key_manager = KeyManager()
+# if key_manager:
+#     print("Generated RSA keypair")
+# else:
+#     print("Failed to generate RSA keypair")
+       
 
 # test_message = "Test Message"
 # signature = sign_message(key_manager.private_key, test_message)
@@ -23,10 +28,10 @@ print("Initial stored public keys:", key_manager.list_stored_public_keys())
 # print("Known Good Signature:", encoded_signature)
 
 # Stap 2 genereren van een symmetrische sleutel voor het berichtverkeer.
-# symmetric_key = os.urandom(32) # 32 bytes = 256 bits
+symmetric_key = os.urandom(32) # 32 bytes = 256 bits
 
 # Dit werkt nog niet met een random key, omdat exchange 1 en 2 een andere key aanmaken. (normaal zou ik een databse gebruken o.i.d , maar gaat te ver)
-symmetric_key = b"12345678901234567890123456789012"
+# symmetric_key = b"12345678901234567890123456789012"
 
 # parse arguments
 parser = argparse.ArgumentParser(description='Basic chat application')
@@ -40,27 +45,22 @@ if args.id is None:
     alphabet = string.ascii_letters + string.digits
     args.id = ''.join(secrets.choice(alphabet) for i in range(8))
 
-key_manager = KeyManager()
-if key_manager:
-    print("Generated RSA keypair")
-else:
-    print("Failed to generate RSA keypair")
+
 
 # print welcome message
 print(f"Basic chat started, my client id is: {args.id}")
-print("Enter your message (or 'quit' to exit): ")    
-    
+   
    
     
 def on_message(client, userdata, message):
     try:
-        print(f"Received raw payload: {message.payload}")
+        # print(f"Received raw payload: {message.payload}")
         obj = json.loads(message.payload)
         if obj['type'] == 'key_exchange':
             client_id = obj['clientid']
             public_key_pem = obj['public_key']
             key_manager.store_public_key(client_id, public_key_pem)
-            print("Current stored public keys:", key_manager.list_stored_public_keys())
+            # print("Current stored public keys:", key_manager.list_stored_public_keys())
 
 
         if obj.get('clientid') == args.id:
@@ -71,7 +71,8 @@ def on_message(client, userdata, message):
             # part for no signing:
             decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
             if decrypted_msg is not None:
-                print(f"Decrypted Message: {decrypted_msg.decode()}")
+                print(f"Decrypted Message received: {decrypted_msg.decode()}")
+                print("Enter a mesaage:")
             else:
                 print("Decryption failed.")
             
@@ -104,8 +105,8 @@ def on_message(client, userdata, message):
 
 
 def on_connect(client, userdata, flags, rc):
-    print(f"Connected with result code {rc}")
-    print("Connected with result code: " + str(rc))
+    # print(f"Connected with result code {rc}")
+    # print("Connected with result code: " + str(rc))
     client.subscribe("public_keys")
     if rc == 0:
         # Successfully connected
@@ -116,14 +117,15 @@ def on_connect(client, userdata, flags, rc):
             'type': 'key_exchange',
             'public_key': public_key_pem.decode()
         }), retain = True) # Retain the public key message !important. DIT DUS NIET VERGETEN
-        print(f"Publishing public key for client ID: {args.id}")
+        # print(f"Publishing public key for client ID: {args.id}")
 
         # Subscribe to the topic where public keys are published
         client.subscribe("public_keys")
 
 
 client = mqtt.Client(args.id)
-client.subscribe("public_keys")
+# TODO: subscribe to the public_keys topic or cli, see if this conflicts?
+# client.subscribe("public_keys")
 client.on_connect = on_connect
 client.on_message = on_message
 client.connect(args.host)
@@ -136,7 +138,7 @@ client.publish("public_keys", json.dumps({
     'type': 'key_exchange',
     'public_key': public_key_pem.decode()
 }))
-
+# okaayyyy.... don;t move this up.
 client.subscribe(args.topic)
 
 while True:
@@ -155,6 +157,7 @@ while True:
         # 'signature': base64.b64encode(signature).decode()
     })
     client.publish(args.topic, payload)
+   
 
 print("Disconnecting...")
 client.loop_stop()
