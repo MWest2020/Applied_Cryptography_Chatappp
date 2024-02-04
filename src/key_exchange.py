@@ -29,6 +29,17 @@ class KeyManager:
         self.other_public_keys[client_id] = public_key
         print(f"Stored public key of {client_id}")
 
+    
+
+
+
     def get_public_key(self, client_id):
-        return self.other_public_keys.get(client_id, None)
+        if client_id not in self.other_public_keys:
+            print(f"No public key found for {client_id}")
+            return None
+        return self.other_public_keys[client_id]
+
+    def list_stored_public_keys(self):
+        return list(self.other_public_keys.keys())
+
 

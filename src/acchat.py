@@ -9,29 +9,14 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
-from encryption import sign_message, verify_signature
-
-# Encryption and Decryption functions
-def encrypt_message(key, plaintext):
-    iv = os.urandom(12)
-    encryptor = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend()).encryptor()
-    ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
-    return base64.b64encode(iv + ciphertext + encryptor.tag).decode('utf-8')
-
-def decrypt_message(key, iv, ciphertext, tag):
-    decryptor = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend()).decryptor()
-    return decryptor.update(ciphertext) + decryptor.finalize()
-
-def parse_encrypted_message(encrypted_message):
-    decoded_message = base64.b64decode(encrypted_message)
-    iv = decoded_message[:12]
-    tag = decoded_message[-16:]
-    ciphertext = decoded_message[12:-16]
-    return iv, ciphertext, tag
+from encryption import sign_message, verify_signature, encrypt_message, decrypt_message, parse_encrypted_message
 
 # Stap 1. import voor de asymmetrissche sleuteluitwisseling 
 from key_exchange import KeyManager
 key_manager = KeyManager()
+key_manager = KeyManager()
+print("Initial stored public keys:", key_manager.list_stored_public_keys())
+
 test_message = "Test Message"
 signature = sign_message(key_manager.private_key, test_message)
 encoded_signature = base64.b64encode(signature).decode()
@@ -75,7 +60,9 @@ def on_message(client, userdata, message):
             client_id = obj['clientid']
             public_key_pem = obj['public_key']
             key_manager.store_public_key(client_id, public_key_pem)
-            print(f"Stored public key for {client_id}")
+            key_manager.store_public_key(client_id, public_key_pem)
+            print("Current stored public keys:", key_manager.list_stored_public_keys())
+
 
         if obj.get('clientid') == args.id:
             return
@@ -90,6 +77,7 @@ def on_message(client, userdata, message):
             # Public Key Logging
             public_key = key_manager.get_public_key(obj['clientid'])
             print(f"Public Key for Verification: {public_key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()}")
+            print("Available public keys before verification:", key_manager.list_stored_public_keys())
 
             print("Verifying signature...")
             # Replace with static signature for testing
@@ -111,6 +99,8 @@ def on_message(client, userdata, message):
 
 def on_connect(client, userdata, flags, rc):
     print(f"Connected with result code {rc}")
+    print("Connected with result code: " + str(rc))
+    client.subscribe("public_keys")
     if rc == 0:
         # Successfully connected
         # Publish the public key
@@ -119,7 +109,7 @@ def on_connect(client, userdata, flags, rc):
             'clientid': args.id,
             'type': 'key_exchange',
             'public_key': public_key_pem.decode()
-        }))
+        }), retain = True) # Retain the public key message !important. DIT DUS NIET VERGETEN
         print(f"Publishing public key for client ID: {args.id}")
 
         # Subscribe to the topic where public keys are published

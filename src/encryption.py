@@ -2,12 +2,12 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 import os
 import base64
-
 from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.primitives.asymmetric import padding
 
 def sign_message(private_key, message):
     message = message.encode() if isinstance(message, str) else message
+    print(f"Signing message: {message}")
     signature = private_key.sign(
         message,
         padding.PSS(
@@ -20,6 +20,7 @@ def sign_message(private_key, message):
 
 def verify_signature(public_key, signature, message):
     message = message.encode() if isinstance(message, str) else message
+    print(f"Verifying message: {message}")
     try:
         public_key.verify(
             signature,
@@ -47,8 +48,14 @@ def decrypt_message(key, iv, ciphertext, tag):
     try:
         decryptor = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend()).decryptor()
         decrypted_data = decryptor.update(ciphertext) + decryptor.finalize()
-        print(f"Decrypted data: {decrypted_data.decode()}")
+        # print(f"Decrypted data: {decrypted_data.decode()}")
         return decrypted_data
     except Exception as e:
         print(f"Decryption error: {e}")
         return None
+def parse_encrypted_message(encrypted_message):
+    decoded_message = base64.b64decode(encrypted_message)
+    iv = decoded_message[:12]
+    tag = decoded_message[-16:]
+    ciphertext = decoded_message[12:-16]
+    return iv, ciphertext, tag
