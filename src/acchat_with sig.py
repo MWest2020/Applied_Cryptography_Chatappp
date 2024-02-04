@@ -4,8 +4,7 @@ import string
 import secrets
 import json
 import base64
-
-from encryption import sign_message, verify_signature, encrypt_message, decrypt_message, parse_encrypted_message
+from encryption import encrypt_message, decrypt_message, parse_encrypted_message, sign_message, verify_signature
 
 # Stap 1. import voor de asymmetrissche sleuteluitwisseling 
 from key_exchange import KeyManager
@@ -43,7 +42,6 @@ print("Enter your message (or 'quit' to exit): ")
     
 def on_message(client, userdata, message):
     try:
-        print(f"Received raw payload: {message.payload}")
         obj = json.loads(message.payload)
         if obj['type'] == 'key_exchange':
             client_id = obj['clientid']
@@ -58,32 +56,24 @@ def on_message(client, userdata, message):
 
         if obj.get('type') == 'chat':
             iv, ciphertext, tag = parse_encrypted_message(obj['message'])
-            # print(f"Received IV: {iv.hex()}, Ciphertext: {base64.b64encode(ciphertext).decode()}, Tag: {tag.hex()}")
-
             signature = base64.b64decode(obj['signature'])
+
             print(f"Received Signature: {base64.b64encode(signature).decode()}")
 
-            # Public Key Logging
-            public_key = key_manager.get_public_key(obj['clientid'])
-            # print(f"Public Key for Verification: {public_key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()}")
-            # print("Available public keys before verification:", key_manager.list_stored_public_keys())
 
-            print("Verifying signature...")
-            # Replace with static signature for testing
-            # signature = base64.b64decode("known_good_signature_base64")
-            message_valid = verify_signature(public_key, signature, obj['message'])
-
-            if message_valid:
-                print("Signature verified successfully.")
+            # Verify signature
+            sender_public_key = key_manager.get_public_key(obj['clientid'])
+            if sender_public_key and verify_signature(sender_public_key, signature, obj['message']):
                 decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
-                if decrypted_msg is not None:
-                    print(f"Decrypted Message: {decrypted_msg.decode()}")
+                if decrypted_msg:
+                    print(f"Decrypted Message received: {decrypted_msg.decode()}")
                 else:
                     print("Decryption failed.")
             else:
                 print("Signature verification failed.")
     except Exception as e:
         print(f"Error type: {type(e).__name__}, Message: {str(e)}")
+
 
 
 def on_connect(client, userdata, flags, rc):
@@ -121,15 +111,18 @@ client.publish("public_keys", json.dumps({
     'public_key': public_key_pem.decode()
 }))
 
-
 while True:
     data = input("Enter message (or 'quit' to exit): ")
     if data.lower() == 'quit':
         break
 
-    signature = sign_message(key_manager.private_key, data)
+    # Encrypt and sign the message
     encrypted_data = encrypt_message(symmetric_key, data)
-    print(f"Encrypted message: {encrypted_data}, Signature: {base64.b64encode(signature).decode()}")
+    signature = sign_message(key_manager.private_key, data)
+    encoded_signature = base64.b64encode(signature).decode()
+    
+    # Log the signature being sent
+    print(f"Sending Signature: {encoded_signature}")
 
     payload = json.dumps({
         'clientid': args.id,

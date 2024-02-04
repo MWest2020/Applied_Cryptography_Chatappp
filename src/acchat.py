@@ -1,9 +1,10 @@
+import base64
 import paho.mqtt.client as mqtt
 import argparse
 import string
 import secrets
 import json
-from encryption import encrypt_message, decrypt_message, parse_encrypted_message
+from encryption import encrypt_message, decrypt_message, parse_encrypted_message, sign_message, verify_signature
 from key_exchange import KeyManager
 
 key_manager = KeyManager()
@@ -31,28 +32,37 @@ print(f"Basic chat started, my client id is: {args.id}")
   
 def on_message(client, userdata, message):
     try:
-        # print(f"Received raw payload: {message.payload}")
         obj = json.loads(message.payload)
+
         if obj['type'] == 'key_exchange':
             client_id = obj['clientid']
             public_key_pem = obj['public_key']
             key_manager.store_public_key(client_id, public_key_pem)
 
         if obj.get('clientid') == args.id:
-            return
+            return  # Skip processing own messages
 
         if obj.get('type') == 'chat':
             iv, ciphertext, tag = parse_encrypted_message(obj['message'])
-            # part for no signing:
-            decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
-            if decrypted_msg:
-                print(f"Decrypted Message received: {decrypted_msg.decode()}")
-                print("Enter a message:")
+            signature = base64.b64decode(obj['signature'])
+            sender_public_key = key_manager.get_public_key(obj['clientid'])
+
+            if sender_public_key:
+                # Verify signature against the original plaintext message
+                if verify_signature(sender_public_key, signature, obj['original_message']):
+                    decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
+                    if decrypted_msg:
+                        print(f"Decrypted Message received: {decrypted_msg.decode()}")
+                        print("This message is genuine.")
+                    else:
+                        print("Decryption failed.")
+                else:
+                    print("Signature verification failed.")
             else:
-                print("Decryption failed.")
+                print(f"No public key found for {obj['clientid']}")
     except Exception as e:
         print(f"Error type: {type(e).__name__}, Message: {str(e)}")
-
+        
 def on_connect(client, userdata, flags, rc):
     # subbing for excahnge 1 and 2
     client.subscribe("public_keys")
@@ -88,13 +98,21 @@ while True:
     data = input("Enter message (or 'quit' to exit): ")
     if data.lower() == 'quit':
         break
+
+    # Encrypt both message and signature
     encrypted_data = encrypt_message(symmetric_key, data)
-    
+    signature = sign_message(key_manager.private_key, data)
+    encoded_signature = base64.b64encode(signature).decode()
+
+    # Log the signature being sent
+    print(f"Sending Signature: {encoded_signature}")
 
     payload = json.dumps({
         'clientid': args.id,
         'type': 'chat',
         'message': encrypted_data,
+        'signature': encoded_signature,
+        'original_message': data  # Include the original plaintext message
     })
     client.publish(args.topic, payload)
    

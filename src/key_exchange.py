@@ -5,7 +5,7 @@ from cryptography.hazmat.backends import default_backend
 class KeyManager:
     def __init__(self):
         self.private_key, self.public_key = self.generate_rsa_keypair()
-        self.other_public_keys = {}  # Opslag voor publieke sleutels van anderen
+        self.other_public_keys = {}  # Storage for public keys of other clients
 
     def generate_rsa_keypair(self):
         private_key = rsa.generate_private_key(
@@ -31,5 +31,3 @@ class KeyManager:
             print(f"No public key found for {client_id}")
             return None
         return self.other_public_keys[client_id]
-
-

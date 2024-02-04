@@ -6,7 +6,9 @@ import os
 import base64
 
 def sign_message(private_key, message):
-    message = message.encode()
+    # Ensure the message is bytes
+    if isinstance(message, str):
+        message = message.encode()
     signature = private_key.sign(
         message,
         padding.PSS(
@@ -18,7 +20,9 @@ def sign_message(private_key, message):
     return signature
 
 def verify_signature(public_key, signature, message):
-    message = message.encode()
+    # Ensure the message is bytes
+    if isinstance(message, str):
+        message = message.encode()
     try:
         public_key.verify(
             signature,
