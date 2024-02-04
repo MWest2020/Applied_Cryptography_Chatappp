@@ -3,29 +3,17 @@ import argparse
 import string
 import secrets
 import json
-import os
 import base64
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.backends import default_backend
 
 from encryption import sign_message, verify_signature, encrypt_message, decrypt_message, parse_encrypted_message
 
 # Stap 1. import voor de asymmetrissche sleuteluitwisseling 
 from key_exchange import KeyManager
 key_manager = KeyManager()
-if key_manager:
-    print("Generated RSA keypair")
-else:
-    print("Failed to generate RSA keypair")
-
-
-
-
 
 # TODO: not test message yet
-# signature = sign_message(key_manager.private_key, test_message)
-# encoded_signature = base64.b64encode(signature).decode()
+signature = sign_message(key_manager.private_key, test_message)
+encoded_signature = base64.b64encode(signature).decode()
 
 # Stap 2 genereren van een symmetrische sleutel voor het berichtverkeer.
 # symmetric_key = os.urandom(32) # 32 bytes = 256 bits

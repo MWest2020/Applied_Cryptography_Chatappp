@@ -22,22 +22,14 @@ class KeyManager:
         )
 
     def store_public_key(self, client_id, public_key_pem):
-        # van string naar bytes
         public_key_bytes = public_key_pem.encode('utf-8')
         public_key = serialization.load_pem_public_key(public_key_bytes, backend=default_backend())
-        # Sla de publieke sleutel op van een andere client
         self.other_public_keys[client_id] = public_key
-        # print(f"Stored public key of {client_id}")
-
+  
     def get_public_key(self, client_id):
         if client_id not in self.other_public_keys:
             print(f"No public key found for {client_id}")
             return None
         return self.other_public_keys[client_id]
 
-    def list_stored_public_keys(self):
-        return {client_id: key.public_bytes(
-            encoding=serialization.Encoding.PEM,
-            format=serialization.PublicFormat.SubjectPublicKeyInfo
-        ).decode() for client_id, key in self.other_public_keys.items()}
 
