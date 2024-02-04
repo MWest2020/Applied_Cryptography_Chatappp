@@ -1,5 +1,3 @@
-# key_manager.py
-
 from cryptography.hazmat.primitives.asymmetric import rsa
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
@@ -26,14 +24,11 @@ class KeyManager:
     def store_public_key(self, client_id, public_key_pem):
         # van string naar bytes
         public_key_bytes = public_key_pem.encode('utf-8')
+        public_key = serialization.load_pem_public_key(public_key_bytes, backend=default_backend())
         # Sla de publieke sleutel op van een andere client
-        self.other_public_keys[client_id] = serialization.load_pem_public_key(
-            public_key_bytes,
-            backend=default_backend()
-        )
+        self.other_public_keys[client_id] = public_key
         print(f"Stored public key of {client_id}")
 
     def get_public_key(self, client_id):
-        # Verkrijg de opgeslagen publieke sleutel van een andere client
-        return self.other_public_keys.get(client_id)
+        return self.other_public_keys.get(client_id, None)
 
