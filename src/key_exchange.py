@@ -37,4 +37,3 @@ class KeyManager:
         # Verkrijg de opgeslagen publieke sleutel van een andere client
         return self.other_public_keys.get(client_id)
 
-

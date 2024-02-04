@@ -1,21 +1,40 @@
-# pip3 install paho-mqtt
 import paho.mqtt.client as mqtt
 import argparse
-import time
 import string
 import secrets
 import json
 import os
+import base64
+from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+from cryptography.hazmat.backends import default_backend
 
+# Encryption and Decryption functions
+def encrypt_message(key, plaintext):
+    iv = os.urandom(12)
+    encryptor = Cipher(algorithms.AES(key), modes.GCM(iv), backend=default_backend()).encryptor()
+    ciphertext = encryptor.update(plaintext.encode()) + encryptor.finalize()
+    return base64.b64encode(iv + ciphertext + encryptor.tag).decode('utf-8')
 
-# importeer de encryptifuncties
-import encryption
+def decrypt_message(key, iv, ciphertext, tag):
+    decryptor = Cipher(algorithms.AES(key), modes.GCM(iv, tag), backend=default_backend()).decryptor()
+    return decryptor.update(ciphertext) + decryptor.finalize()
+
+def parse_encrypted_message(encrypted_message):
+    decoded_message = base64.b64decode(encrypted_message)
+    iv = decoded_message[:12]
+    tag = decoded_message[-16:]
+    ciphertext = decoded_message[12:-16]
+    return iv, ciphertext, tag
+
 
 # Stap 1. import voor de asymmetrissche sleuteluitwisseling 
 from key_exchange import KeyManager
 
 # Stap 2 genereren van een symmetrische sleutel voor het berichtverkeer.
-symmetric_key = os.urandom(32) # 32 bytes = 256 bits
+# symmetric_key = os.urandom(32) # 32 bytes = 256 bits
+
+# Dit werkt nog niet met een random key, omdat exchange 1 en 2 een andere key aanmaken. (normaal zou ik een databse gebruken o.i.d , maar gaat te ver)
+symmetric_key = b"12345678901234567890123456789012"
 
 
 # parse arguments
@@ -47,28 +66,18 @@ def on_message(client, userdata, message):
     try:
         obj = json.loads(message.payload)
 
-        # Negeer berichten die ik zelf heb verzonden
         if obj.get('clientid') == args.id:
             return
-     
-       
-        # Controleer of het bericht een sleuteluitwisselingsbericht is
-        if obj.get('type') == 'key_exchange':
-            if 'public_key' in obj and 'clientid' in obj:
-                key_manager.store_public_key(obj['clientid'], obj['public_key'])
-                print(f"Received public key from {obj['clientid']}")
-            return
 
-        # Verwerk chatberichten
-        elif obj.get('type') == 'chat':
-            encrypted_msg = obj['message']
-            print(f"Received encrypted message: {encrypted_msg}")
-            # Ontsleutel het bericht
-            decrypted_msg = encryption.decrypt_message(symmetric_key, encrypted_msg)
+        if obj.get('type') == 'chat':
+            iv, ciphertext, tag = parse_encrypted_message(obj['message'])
+            decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag).decode('utf-8')
             print(f"Received: '{decrypted_msg}' from '{obj['clientid']}'")
-    
     except Exception as e:
-        print(f"Error: {e}")
+        print(f"Error type: {type(e).__name__}, Message: {str(e)}")
+
+
+
 
 client = mqtt.Client(args.id)
 client.on_message = on_message
@@ -90,10 +99,7 @@ while True:
     if data.lower() == 'quit':
         break
 
-    # Verstuur een chatbericht
-    #versleutel het bericht hier
-    encrypted_data = encryption.encrypt_message(symmetric_key, data)
-    print(f"Encrypted message: {encrypted_data}")
+    encrypted_data = encrypt_message(symmetric_key, data)
     client.publish(args.topic, json.dumps({
         'clientid': args.id,
         'type': 'chat',
