@@ -9,18 +9,18 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.backends import default_backend
 
-# with signiture import
-# from encryption import sign_message, verify_signature, encrypt_message, decrypt_message, parse_encrypted_message
-from encryption import encrypt_message, decrypt_message, parse_encrypted_message
+from encryption import sign_message, verify_signature, encrypt_message, decrypt_message, parse_encrypted_message
+
+# Stap 1. import voor de asymmetrissche sleuteluitwisseling 
 from key_exchange import KeyManager
 key_manager = KeyManager()
-
+key_manager = KeyManager()
 print("Initial stored public keys:", key_manager.list_stored_public_keys())
 
-# test_message = "Test Message"
-# signature = sign_message(key_manager.private_key, test_message)
-# encoded_signature = base64.b64encode(signature).decode()
-# print("Known Good Signature:", encoded_signature)
+test_message = "Test Message"
+signature = sign_message(key_manager.private_key, test_message)
+encoded_signature = base64.b64encode(signature).decode()
+print("Known Good Signature:", encoded_signature)
 
 # Stap 2 genereren van een symmetrische sleutel voor het berichtverkeer.
 # symmetric_key = os.urandom(32) # 32 bytes = 256 bits
@@ -60,6 +60,7 @@ def on_message(client, userdata, message):
             client_id = obj['clientid']
             public_key_pem = obj['public_key']
             key_manager.store_public_key(client_id, public_key_pem)
+            key_manager.store_public_key(client_id, public_key_pem)
             print("Current stored public keys:", key_manager.list_stored_public_keys())
 
 
@@ -68,37 +69,30 @@ def on_message(client, userdata, message):
 
         if obj.get('type') == 'chat':
             iv, ciphertext, tag = parse_encrypted_message(obj['message'])
-            # part for no signing:
-            decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
-            if decrypted_msg is not None:
-                print(f"Decrypted Message: {decrypted_msg.decode()}")
-            else:
-                print("Decryption failed.")
-            
-            
             # print(f"Received IV: {iv.hex()}, Ciphertext: {base64.b64encode(ciphertext).decode()}, Tag: {tag.hex()}")
 
-            # signature = base64.b64decode(obj['signature'])
-            # print(f"Received Signature: {base64.b64encode(signature).decode()}")
+            signature = base64.b64decode(obj['signature'])
+            print(f"Received Signature: {base64.b64encode(signature).decode()}")
 
             # Public Key Logging
-            # public_key = key_manager.get_public_key(obj['clientid'])
-            
+            public_key = key_manager.get_public_key(obj['clientid'])
+            print(f"Public Key for Verification: {public_key.public_bytes(serialization.Encoding.PEM, serialization.PublicFormat.SubjectPublicKeyInfo).decode()}")
+            print("Available public keys before verification:", key_manager.list_stored_public_keys())
 
-            # print("Verifying signature...")
-            # # Replace with static signature for testing
-            # # signature = base64.b64decode("known_good_signature_base64")
-            # message_valid = verify_signature(public_key, signature, obj['message'])
+            print("Verifying signature...")
+            # Replace with static signature for testing
+            # signature = base64.b64decode("known_good_signature_base64")
+            message_valid = verify_signature(public_key, signature, obj['message'])
 
-            # if message_valid:
-            #     print("Signature verified successfully.")
-            #     decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
-            #     if decrypted_msg is not None:
-            #         print(f"Decrypted Message: {decrypted_msg.decode()}")
-            #     else:
-            #         print("Decryption failed.")
-            # else:
-            #     print("Signature verification failed.")
+            if message_valid:
+                print("Signature verified successfully.")
+                decrypted_msg = decrypt_message(symmetric_key, iv, ciphertext, tag)
+                if decrypted_msg is not None:
+                    print(f"Decrypted Message: {decrypted_msg.decode()}")
+                else:
+                    print("Decryption failed.")
+            else:
+                print("Signature verification failed.")
     except Exception as e:
         print(f"Error type: {type(e).__name__}, Message: {str(e)}")
 
@@ -144,15 +138,15 @@ while True:
     if data.lower() == 'quit':
         break
 
-    # signature = sign_message(key_manager.private_key, data)
+    signature = sign_message(key_manager.private_key, data)
     encrypted_data = encrypt_message(symmetric_key, data)
-    
+    print(f"Encrypted message: {encrypted_data}, Signature: {base64.b64encode(signature).decode()}")
 
     payload = json.dumps({
         'clientid': args.id,
         'type': 'chat',
         'message': encrypted_data,
-        # 'signature': base64.b64encode(signature).decode()
+        'signature': base64.b64encode(signature).decode()
     })
     client.publish(args.topic, payload)
 

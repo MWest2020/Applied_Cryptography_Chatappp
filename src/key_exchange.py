@@ -29,10 +29,6 @@ class KeyManager:
         self.other_public_keys[client_id] = public_key
         print(f"Stored public key of {client_id}")
 
-    
-
-
-
     def get_public_key(self, client_id):
         if client_id not in self.other_public_keys:
             print(f"No public key found for {client_id}")
@@ -40,6 +36,8 @@ class KeyManager:
         return self.other_public_keys[client_id]
 
     def list_stored_public_keys(self):
-        return list(self.other_public_keys.keys())
-
+        return {client_id: key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ).decode() for client_id, key in self.other_public_keys.items()}
 
