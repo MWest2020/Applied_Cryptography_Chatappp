@@ -59,3 +59,11 @@ The chat application leverages the MQTT protocol for message passing, combined w
 - **MQTT Protocol:** The MQTT (Message Queuing Telemetry Transport) protocol is used as the underlying messaging protocol due to its lightweight and efficient nature, making it highly suitable for real-time communication applications. The protocol facilitates message passing between clients through a publish/subscribe model, where messages are categorized into topics.
 
 This combination of the MQTT protocol and advanced cryptographic techniques ensures that the chat application provides a secure and efficient platform for real-time communication.
+
+## Testsuite
+
+During development some tests were written to ensure the correct functionality of the application. These tests can be found in the `tests` directory. To run the tests, use the following command:
+
+```bash
+python -m [test_file_name.py]
+```
