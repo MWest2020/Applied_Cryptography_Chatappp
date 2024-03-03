@@ -76,7 +76,7 @@ def on_connect(client, userdata, flags, rc):
       
         client.subscribe("public_keys")
 
-client = mqtt.Client(args.id)
+client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION1 ,args.id)
 # TODO: subscribe to the public_keys topic or cli, see if this conflicts?
 # client.subscribe("public_keys")
 client.on_connect = on_connect
